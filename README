@@ -1,0 +1,10 @@
+# In order to access this file i have shared you will have to aquire the dv processing, they have a program that plays back a adet4 file as if it was actually there.
+# Using this recording data you should be able to write an algoritm that determines which "robot" and where each robot is.
+# i have the frequency set to 2hz for robot 1
+# i have the frequency set to 3hz for robot 2
+# i have the frequency set to 4hz for robot 3
+# could probably use a noise filter.
+# and a pca algorithm
+# yeah.
+# i don't know
+# i got an exam on thursday. i'll think about this more after that.
