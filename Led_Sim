@@ -1,0 +1,254 @@
+
+import pygame
+import random
+import math
+
+# Initialize Pygame
+pygame.init()
+#Flash_fre = [2, 4, 6]
+
+# Screen dimensions
+WIDTH, HEIGHT = 1600, 1000
+FPS = 60
+
+# Colors
+BLACK = (0, 0, 0)
+COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]  # Red, Green, Blue
+
+class Triangle:
+    def __init__(self, x, y, color, vx, vy):
+        self.x = x  # Center X
+        self.y = y  # Center Y
+        self.color = color
+        self.vx = vx  # Velocity X
+        self.vy = vy  # Velocity Y
+        self.size = 30  # Size of the triangle
+        self.direction_change_counter = random.randint(60, 300)  # Frames until random direction change
+        self.flash_frequency = random.uniform(2, 8)  # Flash frequency in Hz
+        self.flash_counter = 0  # Counter for flashing
+        
+    def get_points(self):
+        """Calculate triangle vertices based on center position"""
+        # Isosceles triangle with 15° point angle pointing in direction of travel
+        # Calculate angle based on velocity direction (add pi/2 to rotate)
+        velocity_angle = math.atan2(self.vy, self.vx) + math.pi/2
+        
+        # Triangle points in local coordinates (before rotation)
+        local_p1 = (0, -self.size * 2)  # Top point (sharp 15°)
+        local_p2 = (-self.size * 0.5, self.size)  # Bottom left
+        local_p3 = (self.size * 0.5, self.size)  # Bottom right
+        
+        # Rotate points based on velocity angle
+        def rotate_point(px, py, angle):
+            cos_a = math.cos(angle)
+            sin_a = math.sin(angle)
+            return (px * cos_a - py * sin_a, px * sin_a + py * cos_a)
+        
+        p1 = rotate_point(local_p1[0], local_p1[1], velocity_angle)
+        p2 = rotate_point(local_p2[0], local_p2[1], velocity_angle)
+        p3 = rotate_point(local_p3[0], local_p3[1], velocity_angle)
+        
+        # Translate to world position
+        p1 = (self.x + p1[0], self.y + p1[1])
+        p2 = (self.x + p2[0], self.y + p2[1])
+        p3 = (self.x + p3[0], self.y + p3[1])
+        
+        return [p1, p2, p3]
+    
+    def update(self):
+        """Update position and handle bouncing"""
+        self.x += self.vx
+        self.y += self.vy
+        
+        # Update flash counter
+        self.flash_counter += 1
+        
+        # Randomly change direction without hitting a wall
+        self.direction_change_counter -= 1
+        if self.direction_change_counter <= 0:
+            # Pick a random angle and speed
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(2, 6)
+            self.vx = math.cos(angle) * speed
+            self.vy = math.sin(angle) * speed
+            # Reset counter
+            self.direction_change_counter = random.randint(60, 300)
+        
+        # Bounce off left and right edges
+        if self.x - self.size <= 0 or self.x + self.size >= WIDTH:
+            self.vx *= -1
+            # Vary speed on bounce
+            speed = math.sqrt(self.vx**2 + self.vy**2)
+            new_speed = random.uniform(2, 6)
+            if speed > 0:
+                self.vx = (self.vx / speed) * new_speed
+                self.vy = (self.vy / speed) * new_speed
+            # Keep triangle in bounds
+            self.x = max(self.size, min(WIDTH - self.size, self.x))
+        
+        # Bounce off top and bottom edges
+        if self.y - self.size <= 0 or self.y + self.size >= HEIGHT:
+            self.vy *= -1
+            # Vary speed on bounce
+            speed = math.sqrt(self.vx**2 + self.vy**2)
+            new_speed = random.uniform(2, 6)
+            if speed > 0:
+                self.vx = (self.vx / speed) * new_speed
+                self.vy = (self.vy / speed) * new_speed
+            # Keep triangle in bounds
+            self.y = max(self.size, min(HEIGHT - self.size, self.y))
+    
+    def draw(self, screen):
+        """Draw white dots at triangle corners with flashing effect"""
+        # Calculate flash state based on frequency
+        cycle_length = FPS / self.flash_frequency
+        is_visible = (self.flash_counter % cycle_length) < (cycle_length / 2)
+        
+        if is_visible:
+            # Get corner points
+            points = self.get_points()
+            # Draw white dots at each corner
+            for point in points:
+                pygame.draw.circle(screen, (255, 255, 255), (int(point[0]), int(point[1])), 5)
+    
+    def check_collision(self, other):
+        """Check if this triangle collides with another triangle"""
+        # Use circular collision detection based on distance between centers
+        dx = self.x - other.x
+        dy = self.y - other.y
+        distance = math.sqrt(dx**2 + dy**2)
+        # Collision occurs if distance is less than sum of radii
+        return distance < (self.size + other.size)
+    
+    def handle_collision(self, other):
+        """Handle collision with another triangle by bouncing apart"""
+        # Calculate vector from other to self
+        dx = self.x - other.x
+        dy = self.y - other.y
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        if distance < 0.1:
+            distance = 0.1  # Avoid division by zero
+        
+        # Normalize the direction
+        nx = dx / distance
+        ny = dy / distance
+        
+        # Project velocities onto collision normal
+        self_vel_normal = self.vx * nx + self.vy * ny
+        other_vel_normal = other.vx * nx + other.vy * ny
+        
+        # Only collide if moving towards each other
+        if self_vel_normal <= other_vel_normal:
+            return
+        
+        # Calculate impulse (simplified elastic collision with equal mass)
+        impulse = (self_vel_normal - other_vel_normal) / 2
+        
+        # Apply impulse
+        self.vx -= impulse * nx
+        self.vy -= impulse * ny
+        other.vx += impulse * nx
+        other.vy += impulse * ny
+        
+        # Separate triangles to avoid overlap
+        min_distance = self.size + other.size
+        overlap = min_distance - distance
+        if overlap > 0:
+            separation = overlap / 2 + 0.5
+            self.x += nx * separation
+            self.y += ny * separation
+            other.x -= nx * separation
+            other.y -= ny * separation
+
+
+# Create the display
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Bouncing Triangles")
+clock = pygame.time.Clock()
+font = pygame.font.Font(None, 48)  # Create font for displaying frequency
+freq_input_font = pygame.font.Font(None, 60)  # Font for frequency input
+
+# Frequency selection menu
+frequencies = []
+for i in range(3):
+    input_str = ""
+    input_active = True
+    while input_active:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    try:
+                        freq = float(input_str)
+                        if 0.5 <= freq <= 20:
+                            frequencies.append(freq)
+                            input_active = False
+                        else:
+                            input_str = "(0.5-20)"
+                    except ValueError:
+                        input_str = "Invalid"
+                elif event.key == pygame.K_BACKSPACE:
+                    input_str = input_str[:-1]
+                elif event.unicode.isdigit() or event.unicode == '.':
+                    if input_str not in ["Invalid", "(0.5-20)"]:
+                        input_str += event.unicode
+                    else:
+                        input_str = event.unicode
+        
+        screen.fill(BLACK)
+        prompt = freq_input_font.render(f"Triangle {i+1} Frequency (Hz): ", True, COLORS[i])
+        screen.blit(prompt, (50, 300))
+        freq_display = freq_input_font.render(input_str + "_", True, (255, 255, 255))
+        screen.blit(freq_display, (50, 400))
+        pygame.display.flip()
+        clock.tick(30)
+
+# Create three triangles with frequencies set by user
+triangles = []
+for i, color in enumerate(COLORS):
+    x = random.randint(100, WIDTH - 100)
+    y = random.randint(100, HEIGHT - 100)
+    vx = random.uniform(-5, 5)
+    vy = random.uniform(-5, 5)
+    triangle = Triangle(x, y, color, vx, vy)
+    triangle.flash_frequency = frequencies[i]
+    triangles.append(triangle)
+
+# Main loop
+running = True
+while running:
+    clock.tick(FPS)
+    
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    
+    # Update triangles
+    for triangle in triangles:
+        triangle.update()
+    
+    # Check collisions between triangles
+    for i in range(len(triangles)):
+        for j in range(i + 1, len(triangles)):
+            if triangles[i].check_collision(triangles[j]):
+                triangles[i].handle_collision(triangles[j])
+    
+    # Draw
+    screen.fill(BLACK)
+    for triangle in triangles:
+        triangle.draw(screen)
+    
+    # Display flash frequencies
+    freq_text = "Flash Frequencies: "
+    for i, triangle in enumerate(triangles):
+        freq_text += f"T{i+1}: {triangle.flash_frequency:.2f}Hz  "
+    freq_surface = font.render(freq_text, True, (255, 255, 255))
+    screen.blit(freq_surface, (10, HEIGHT - 60))
+    
+    pygame.display.flip()
+
+pygame.quit()
