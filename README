@@ -8,3 +8,8 @@
 # yeah.
 # i don't know
 # i got an exam on thursday. i'll think about this more after that.
+# the website that has the scripts you need is called https://dv-processing.inivation.com/master/index.html go there follow their instructions to download the software. then you can play the video with
+# python python/samples/file_playback.py -f "C:\YOUR FILE PATH\my_recording.aedat4"
+# and in theory you should be able to have your algorithm analize the recording as if it was happening in real time imho
+# once you have one that works hit me up. submit a pull request and we can add a branch.
+# Hopefully i am doing okay with this i am way out of my depth on this.
