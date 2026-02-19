@@ -169,9 +169,43 @@ clock = pygame.time.Clock()
 font = pygame.font.Font(None, 48)  # Create font for displaying frequency
 freq_input_font = pygame.font.Font(None, 60)  # Font for frequency input
 
+# Number of triangles selection
+num_triangles_str = ""
+num_triangles_input = True
+while num_triangles_input:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                try:
+                    num_triangles = int(num_triangles_str)
+                    if 1 <= num_triangles <= 20:
+                        num_triangles_input = False
+                    else:
+                        num_triangles_str = "(1-20)"
+                except ValueError:
+                    num_triangles_str = "Invalid"
+            elif event.key == pygame.K_BACKSPACE:
+                num_triangles_str = num_triangles_str[:-1]
+            elif event.unicode.isdigit():
+                if num_triangles_str not in ["Invalid", "(1-20)"]:
+                    num_triangles_str += event.unicode
+                else:
+                    num_triangles_str = event.unicode
+    
+    screen.fill(BLACK)
+    prompt = freq_input_font.render("Number of Triangles: ", True, (255, 255, 255))
+    screen.blit(prompt, (50, 300))
+    display = freq_input_font.render(num_triangles_str + "_", True, (255, 255, 255))
+    screen.blit(display, (50, 400))
+    pygame.display.flip()
+    clock.tick(30)
+
 # Frequency selection menu
 frequencies = []
-for i in range(3):
+for i in range(num_triangles):
     input_str = ""
     input_active = True
     while input_active:
@@ -199,16 +233,18 @@ for i in range(3):
                         input_str = event.unicode
         
         screen.fill(BLACK)
-        prompt = freq_input_font.render(f"Triangle {i+1} Frequency (Hz): ", True, COLORS[i])
+        prompt = freq_input_font.render(f"Triangle {i+1} Frequency (Hz): ", True, (255, 255, 255))
         screen.blit(prompt, (50, 300))
         freq_display = freq_input_font.render(input_str + "_", True, (255, 255, 255))
         screen.blit(freq_display, (50, 400))
         pygame.display.flip()
         clock.tick(30)
 
-# Create three triangles with frequencies set by user
+# Create triangles with frequencies set by user
 triangles = []
-for i, color in enumerate(COLORS):
+for i in range(num_triangles):
+    # Cycle through colors if more triangles than colors
+    color = COLORS[i % len(COLORS)]
     x = random.randint(100, WIDTH - 100)
     y = random.randint(100, HEIGHT - 100)
     vx = random.uniform(-5, 5)
